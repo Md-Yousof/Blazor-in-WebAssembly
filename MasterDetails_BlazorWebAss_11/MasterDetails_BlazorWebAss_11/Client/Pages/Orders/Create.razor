@@ -1,0 +1,125 @@
+﻿@page "/order/create"
+
+@using System.Linq
+@using MasterDetails_BlazorWebAss_11.Shared.Models;
+@inject HttpClient http;
+@inject NavigationManager NavigationManager;
+
+
+<div class="row">
+    <div class="col-lg-9">
+        <h2>Create Order</h2>
+    </div>
+
+    <div class="col-lg-3 text-right">
+        <a href="/orders" role="button" class="btn btn-secondary btn-sm">Back to list</a>
+    </div>
+</div>
+
+@if (Order != null)
+{
+    <EditForm Model="@Order" OnValidSubmit="@SubmitOrder" enctype="multipart/form-data">
+        <div class="form-group">
+            <label>Customer Name</label>
+            <InputText class="form-control" @bind-Value="Order.CustomerName" />
+        </div>
+
+        <div class="form-group">
+            <label>Order Date</label>
+            <InputDate class="form-control" @bind-Value="Order.OrderDate" />
+        </div>
+
+        <div class="form-group">
+            <label>Is Active</label>
+            <InputCheckbox @bind-Value="Order.IsActive" />
+        </div>
+
+        <h4>Order Items</h4>
+
+        @for (int i = 0; i < Order.Items.Count; i++)
+        {
+            var orderItem = Order.Items[i];
+            <div class="form-row" @key="orderItem">
+                <div class="form-group col-md-4">
+                    <label>Product</label>
+                    <InputSelect class="form-control" @bind-Value="orderItem.ProductId">
+                        @foreach (var product in Products)
+                        {
+                            <option value="@product.ProductId">@product.ProductName</option>
+                        }
+                    </InputSelect>
+                </div>
+                <div class="form-group col-md-4">
+                    <label>Quantity</label>
+                    <InputNumber class="form-control" @bind-Value="orderItem.Quantity" />
+                </div>
+                <div class="form-group col-md-4">
+                    <label>Price</label>
+                    <InputNumber class="form-control" @bind-Value="orderItem.Price" />
+                </div>
+                <div class="form-group col-md-1">
+                    <button type="button" class="btn btn-danger btn-sm" @onclick="RemoveOrderItem">Remove Item</button>
+                </div>
+            </div>
+        }
+
+        <button type="button" class="btn btn-primary" @onclick="AddOrderItem">Add Item</button>
+
+        <button type="submit" class="btn btn-primary">Create Order</button>
+    </EditForm>
+}
+
+@code {
+    private Order Order = new();
+
+    private List<Product> Products = new();
+
+    private void AddOrderItem()
+    {
+        Order.Items.Add(new OrderItem());
+    }
+
+    private void RemoveOrderItem()
+    {
+        Console.WriteLine("Order.Items.Count: " + Order.Items.Count);
+        var index = Order.Items.Count;
+        Console.WriteLine("RemoveOrderItem called with index: " + index);
+        if (/*index > 0 &&*/ index > 1)
+        {
+            Console.WriteLine("if condition " + index);
+            index = 1;
+            Order.Items.RemoveAt(index);
+            //StateHasChanged();
+        }
+        else
+        {
+            Console.WriteLine("else condition " + index);
+
+            Order.Items.Clear();
+        }
+    }
+
+
+    private async Task SubmitOrder()
+    {
+       
+
+        var response = await http.PostAsJsonAsync("api/Order", Order);
+        if (response.IsSuccessStatusCode)
+        {
+            NavigationManager.NavigateTo("/orders");
+        }
+        else
+        {
+            var errorMessage = await response.Content.ReadAsStringAsync();
+        }
+    }
+
+
+    protected override async void OnInitialized()
+    {
+        Products = await http.GetFromJsonAsync<List<Product>>("api/Order/products");
+    }
+
+
+}

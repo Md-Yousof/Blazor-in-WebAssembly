@@ -1,0 +1,87 @@
+﻿@page "/order/details/{id:int}"
+@using MasterDetails_BlazorWebAss_11.Shared.Models
+@inject HttpClient http
+@inject NavigationManager NavigationManager
+
+<div class="container">
+    <div class="row">
+        <div class="col-lg-9">
+            <h2>Order Details</h2>
+        </div>
+
+        <div class="col-lg-3 text-right">
+            <a href="/orders" role="button" class="btn btn-secondary btn-sm">Back to List</a>
+        </div>
+    </div>
+
+    @if (Order != null)
+    {
+        <div class="form-group">
+            <label>Customer Name</label>
+            <input class="form-control" value="@Order.CustomerName" readonly />
+        </div>
+
+        <div class="form-group">
+            <label>Order Date</label>
+            <input class="form-control" value="@Order.OrderDate.ToShortDateString()" readonly />
+        </div>
+
+        <div class="form-group">
+            <label>Is Active</label>
+            <input class="form-control" value="@GetIsActiveText(Order.IsActive)" readonly />
+        </div>
+
+      
+
+        <h4>Order Items</h4>
+
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Quantity</th>
+                    <th>Price</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var orderItem in Order.Items)
+                {
+                    <tr>
+                        <td>@Products.FirstOrDefault(p => p.ProductId == orderItem.ProductId)?.ProductName</td>
+                        <td>@orderItem.Quantity'</td>
+                        <td>@orderItem.Price</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+    private Order Order = new();
+    private List<Product> Products = new();
+
+    [Parameter]
+    public int id { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (id != 0)
+        {
+            Order = await http.GetFromJsonAsync<Order>("api/Order/" + id);
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Products = await http.GetFromJsonAsync<List<Product>>("api/Order/products");
+    }
+    //  private string GetIsActiveClass(bool isActive)
+    //{
+    //    return isActive ? "text-success font-weight-bold" : "text-danger font-weight-bold";
+    //}
+    private string GetIsActiveText(bool isActive)
+    {
+        return isActive ? "True" : "False";
+    }
+}

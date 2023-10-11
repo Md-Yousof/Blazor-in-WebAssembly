@@ -1,0 +1,688 @@
+------------------------------------------------------------------
+			Master Details 
+------------------------------------------------------------------
+
+Project: Blazor WebAssembly => .Net 06  =>  None  =>  Asp.Net.Core Hosted (tik)
+
+-------------------------------
+Server Side => Install Packege:
+-------------------------------
+
+Microsoft.EntityFrameworkCore.SqlServer(6.0.21)
+Microsoft.EntityFrameworkCore.Tools(6.0.21)
+
+================================================================
+Shared Side => Models 
+---------------------
+  
+  public class Product
+    {
+        [Key]
+        public int ProductId { get; set; }
+        public string? ProductName { get; set; }
+        public virtual ICollection<OrderItem>? OrderItem { get; }
+
+    }
+
+
+ public class OrderItem
+    {
+        [Key]
+        public int OrderItemId { get; set; }
+        public int OrderId { get; set; }
+        [JsonIgnore]
+        public Order? Order { get; set; }
+        public int ProductId { get; set; }
+        [JsonIgnore]
+        public Product? Product { get; set; }
+        public decimal Price { get; set; }
+        public int Quantity { get; set;}
+       
+    }
+
+
+ public class Order
+    {
+        public int OrderId { get; set; }
+        public string? CustomerName { get; set; }
+        public DateTime OrderDate { get; set; }
+        public bool IsActive { get; set; }
+
+        public List<OrderItem> Items { get; set;}=new List<OrderItem>();
+
+    }
+
+
+====================================================
+Server Side => Models => Create DbContext 
+-----------------------------------------
+using MasterDetails_BlazorWebAss_11.Shared.Models;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
+
+namespace MasterDetails_BlazorWebAss_11.Server.Models
+{
+    public class MyDbContext : DbContext
+    {
+        public MyDbContext(DbContextOptions options) : base(options)
+        {
+        }
+
+        public DbSet<Product> Products { get; set; }
+        public DbSet<Order> Orders { get; set; }
+        public DbSet<OrderItem> OrderItems { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+
+            modelBuilder.Entity<Product>()
+                .HasData(
+                new Product { ProductId = 1, ProductName = "Mango-R1" },
+                new Product { ProductId = 2, ProductName = "Fruit-P1" },
+                new Product { ProductId = 3, ProductName = "Vagitable-N1" }
+                );
+        }
+    }
+
+}
+
+
+=============================================================================
+Server Side =>  appsetting.Json : Add this 
+--------------------------------
+,
+  "ConnectionStrings": {
+   "DbCon": "server=(localdb)\\mssqllocaldb; database= MasterBlazorDb; Trusted_Connection=True; MultipleActiveResultSets=true"
+ }
+
+====================================================
+Server Side => Program.cs (Server Side): Add this
+-------------------------------------------------
+
+builder.Services.AddDbContext<MyDbContext>(options =>
+options.UseSqlServer(builder.Configuration.GetConnectionString("DbCon")));
+
+-----------------------------------
+Server Side => PackegeManager now :
+-----------------------------------
+Add-Migration InitialCreate
+Update-Database 
+
+=============================================================
+Server Side => API Controller => Empty =>  OrderController.cs
+=============================================================
+using MasterDetails_BlazorWebAss_11.Server.Models;
+using MasterDetails_BlazorWebAss_11.Shared.Models;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+
+namespace MasterDetails_BlazorWebAss_11.Server.Controllers
+{
+    [Route("api/[controller]")]
+    [ApiController]
+    public class OrderController : ControllerBase
+    {
+        private readonly MyDbContext _context;
+        public OrderController(MyDbContext context)
+        {
+            _context = context;
+        }
+        [HttpGet]
+        public async Task<List<Order>> GetOrders()
+        {
+            return await _context.Orders.Include(o => o.Items).ToListAsync();
+
+        }
+
+        [HttpGet("{id}")]
+
+        public async Task<IActionResult> GetOrder(int id)
+        {
+            if (id == 0)
+            {
+                return NotFound();
+            }
+            var order = await _context.Orders.Include(o => o.Items).FirstOrDefaultAsync(o => o.OrderId == id);
+            return Ok(order);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Post(Order order)
+        {
+            if (order == null)
+            {
+                return BadRequest();
+            }
+            else
+            {
+                _context.Orders.Add(order);
+                await _context.SaveChangesAsync();
+                return Ok();
+
+            }
+        }
+
+        [HttpPut]
+        public async Task<IActionResult> Put(Order order)
+        {
+
+            _context.Orders.Update(order);
+            await _context.SaveChangesAsync();
+            return Ok();
+
+        }
+
+        [HttpDelete("{id}")]
+        public IActionResult Delete(int id)
+        {
+            var order = _context.Orders.Find(id);
+            if (order != null)
+            {
+                _context.Orders.Remove(order);
+                _context.SaveChanges();
+            }
+            return BadRequest();
+
+        }
+
+        [HttpGet("products")]
+        public async Task<List<Product>> Product()
+        {
+         return  await _context.Products.ToListAsync();
+
+        }
+
+    }
+}
+
+
+=============================================================================
+Client Side => Shared => navMenu.Rezor
+======================================
+
+<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">Exam11</a>
+        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+    </div>
+</div>
+
+<div class="@NavMenuCssClass" @onclick="ToggleNavMenu">
+    <nav class="flex-column">
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <span class="oi oi-home" aria-hidden="true"></span> Home
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="counter">
+                <span class="oi oi-plus" aria-hidden="true"></span> Counter
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="/orders">
+                <span class="oi oi-list-rich" aria-hidden="true"></span> Order
+            </NavLink>
+        </div>
+    </nav>
+</div>
+
+@code {
+    private bool collapseNavMenu = true;
+
+    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+
+    private void ToggleNavMenu()
+    {
+        collapseNavMenu = !collapseNavMenu;
+    }
+}
+
+
+=============================================================
+Client Side => Page => Orders => List.razor  (Rezor Component)
+=============================================================
+@page "/orders"
+@using MasterDetails_BlazorWebAss_11.Shared.Models;
+@inject HttpClient http;
+
+<div class="row">
+    <div class="col-lg-9">
+        <h2>Order List</h2>
+    </div>
+
+    <div class="col-lg-3 text-right">
+        <a href="/order/create" role="button" class="btn btn-primary btn-sm">Create New Order</a>
+    </div>
+</div>
+
+@if (Orders != null)
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Order ID</th>
+                <th>Customer Name</th>
+                <th>Order Date</th>
+                <th>Status</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var order in Orders)
+            {
+                <tr>
+                    <td>@order.OrderId</td>
+                    <td>@order.CustomerName</td>
+                    <td>@order.OrderDate.ToShortDateString()</td>
+                    <td>@(order.IsActive)</td>
+                    <td>
+                        <a href="/order/details/@order.OrderId" class="btn btn-info btn-sm">Details</a>
+                        <a href="/order/edit/@order.OrderId" class="btn btn-info btn-sm">Edit</a>
+                        <button @onclick="@(e => DeleteOrder(order.OrderId))" class="btn btn-danger btn-sm">Delete</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    [Inject]
+    protected IJSRuntime JSRuntime { get; set; }
+    protected List<Order> Orders = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await GetOrder();
+    }
+
+    protected async Task GetOrder()
+    {
+        Orders = await http.GetFromJsonAsync<List<Order>>("api/Order");
+    }
+
+    //public async Task DeleteOrder(int id)
+    //{
+    //    await http.DeleteAsync("api/Order/"+id);
+
+    //    await GetOrder();
+    //}
+    protected async Task DeleteOrder(int id)
+    {
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to delete this order?");
+
+        if (confirmed)
+        {
+            await http.DeleteAsync("api/Order/" + id);
+            await GetOrder();
+        }
+    }
+}
+
+
+===============================================================
+Client Side => Page => Orders => Create.razor  (Rezor Component)
+===============================================================
+@page "/order/create"
+
+@using System.Linq
+@using MasterDetails_BlazorWebAss_11.Shared.Models;
+@inject HttpClient http;
+@inject NavigationManager NavigationManager;
+
+
+<div class="row">
+    <div class="col-lg-9">
+        <h2>Create Order</h2>
+    </div>
+
+    <div class="col-lg-3 text-right">
+        <a href="/orders" role="button" class="btn btn-secondary btn-sm">Back to list</a>
+    </div>
+</div>
+
+@if (Order != null)
+{
+    <EditForm Model="@Order" OnValidSubmit="@SubmitOrder" enctype="multipart/form-data">
+        <div class="form-group">
+            <label>Customer Name</label>
+            <InputText class="form-control" @bind-Value="Order.CustomerName" />
+        </div>
+
+        <div class="form-group">
+            <label>Order Date</label>
+            <InputDate class="form-control" @bind-Value="Order.OrderDate" />
+        </div>
+
+        <div class="form-group">
+            <label>Is Active</label>
+            <InputCheckbox @bind-Value="Order.IsActive" />
+        </div>
+
+        <h4>Order Items</h4>
+
+        @for (int i = 0; i < Order.Items.Count; i++)
+        {
+            var orderItem = Order.Items[i];
+            <div class="form-row" @key="orderItem">
+                <div class="form-group col-md-4">
+                    <label>Product</label>
+                    <InputSelect class="form-control" @bind-Value="orderItem.ProductId">
+                        @foreach (var product in Products)
+                        {
+                            <option value="@product.ProductId">@product.ProductName</option>
+                        }
+                    </InputSelect>
+                </div>
+                <div class="form-group col-md-4">
+                    <label>Quantity</label>
+                    <InputNumber class="form-control" @bind-Value="orderItem.Quantity" />
+                </div>
+                <div class="form-group col-md-4">
+                    <label>Price</label>
+                    <InputNumber class="form-control" @bind-Value="orderItem.Price" />
+                </div>
+                <div class="form-group col-md-1">
+                    <button type="button" class="btn btn-danger btn-sm" @onclick="RemoveOrderItem">Remove Item</button>
+                </div>
+            </div>
+        }
+
+        <button type="button" class="btn btn-primary" @onclick="AddOrderItem">Add Item</button>
+
+        <button type="submit" class="btn btn-primary">Create Order</button>
+    </EditForm>
+}
+
+@code {
+    private Order Order = new();
+
+    private List<Product> Products = new();
+
+    private void AddOrderItem()
+    {
+        Order.Items.Add(new OrderItem());
+    }
+
+    private void RemoveOrderItem()
+    {
+        Console.WriteLine("Order.Items.Count: " + Order.Items.Count);
+        var index = Order.Items.Count;
+        Console.WriteLine("RemoveOrderItem called with index: " + index);
+        if (/*index > 0 &&*/ index > 1)
+        {
+            Console.WriteLine("if condition " + index);
+            index = 1;
+            Order.Items.RemoveAt(index);
+            //StateHasChanged();
+        }
+        else
+        {
+            Console.WriteLine("else condition " + index);
+
+            Order.Items.Clear();
+        }
+    }
+
+
+    private async Task SubmitOrder()
+    {
+       
+
+        var response = await http.PostAsJsonAsync("api/Order", Order);
+        if (response.IsSuccessStatusCode)
+        {
+            NavigationManager.NavigateTo("/orders");
+        }
+        else
+        {
+            var errorMessage = await response.Content.ReadAsStringAsync();
+        }
+    }
+
+
+    protected override async void OnInitialized()
+    {
+        Products = await http.GetFromJsonAsync<List<Product>>("api/Order/products");
+    }
+
+
+}
+
+
+=============================================================
+Client Side => Page => Orders => Edit.razor  (Rezor Component)
+=============================================================
+
+@page "/order/edit/{id:int}"
+@using MasterDetails_BlazorWebAss_11.Shared.Models
+@inject HttpClient http
+@inject NavigationManager NavigationManager
+
+<div class="container">
+    <div class="row">
+        <div class="col-lg-9">
+            <h2>Edit Order</h2>
+        </div>
+
+        <div class="col-lg-3 text-right">
+            <a href="/orders" role="button" class="btn btn-secondary btn-sm">Back to List</a>
+        </div>
+    </div>
+
+    @if (Order != null)
+    {
+        <EditForm Model="@Order" OnValidSubmit="@UpdateOrder" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="CustomerName">Customer Name</label>
+                <InputText id="CustomerName" class="form-control" @bind-Value="Order.CustomerName" />
+            </div>
+
+            <div class="form-group">
+                <label for="OrderDate">Order Date</label>
+                <InputDate id="OrderDate" class="form-control" @bind-Value="Order.OrderDate" />
+            </div>
+
+            <div class="form-group">
+                <label for="IsActive">Is Active</label>
+                <InputCheckbox id="IsActive" @bind-Value="Order.IsActive" />
+            </div>
+
+            
+
+            <h4>Order Items</h4>
+
+            @for (int i = 0; i < Order.Items.Count; i++)
+            {
+                var orderItem = Order.Items[i];
+                <div class="form-row" @key="orderItem">
+                    <div class="form-group col-md-4">
+                        <label for="ProductId">Product</label>
+                        <InputSelect id="ProductId" class="form-control" @bind-Value="orderItem.ProductId">
+                            @foreach (var product in Products)
+                            {
+                                <option value="@product.ProductId">@product.ProductName</option>
+                            }
+                        </InputSelect>
+                    </div>
+                    <div class="form-group col-md-4">
+                        <label for="Quantity">Quantity</label>
+                        <InputNumber id="Quantity" class="form-control" @bind-Value="orderItem.Quantity" />
+                    </div>
+                    <div class="form-group col-md-4">
+                        <label for="Price">Price</label>
+                        <InputNumber id="Price" class="form-control" @bind-Value="orderItem.Price" />
+                    </div>
+                    <div class="form-group col-md-1">
+                        <button type="button" class="btn btn-danger btn-sm" @onclick="RemoveOrderItem">Remove Item</button>
+                    </div>
+                </div>
+            }
+
+            <button type="button" class="btn btn-primary" @onclick="AddOrderItem">Add Item</button>
+
+            <button type="submit" class="btn btn-primary">Update Order</button>
+        </EditForm>
+    }
+</div>
+
+@code {
+    private Order Order = new();
+
+    private List<Product> Products = new();
+
+    [Parameter]
+    public int id { get; set; }
+
+
+    private void AddOrderItem()
+    {
+        Order.Items.Add(new OrderItem());
+    }
+
+
+    private void RemoveOrderItem()
+    {
+        var index = Order.Items.Count;
+
+        if (index > 1)
+        {
+            int i = 1;
+            //index = 1;
+            Order.Items.RemoveAt(i);
+        }
+        else
+        {
+            Order.Items.Clear();
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (id != 0)
+        {
+            Order = await http.GetFromJsonAsync<Order>("api/Order/" + id);
+        }
+    }
+
+    private async Task UpdateOrder()
+    {
+        if (id != 0)
+        {
+            var response = await http.PutAsJsonAsync("api/Order/", Order);
+            if (response.IsSuccessStatusCode)
+            {
+                NavigationManager.NavigateTo("/orders");
+            }
+        }
+
+    }
+    
+
+    protected override async void OnInitialized()
+    {
+        Products = await http.GetFromJsonAsync<List<Product>>("api/Order/products");
+    }
+}
+
+=================================================================
+Client Side => Page => Orders => Details.razor  (Rezor Component)
+=================================================================
+
+@page "/order/details/{id:int}"
+@using MasterDetails_BlazorWebAss_11.Shared.Models
+@inject HttpClient http
+@inject NavigationManager NavigationManager
+
+<div class="container">
+    <div class="row">
+        <div class="col-lg-9">
+            <h2>Order Details</h2>
+        </div>
+
+        <div class="col-lg-3 text-right">
+            <a href="/orders" role="button" class="btn btn-secondary btn-sm">Back to List</a>
+        </div>
+    </div>
+
+    @if (Order != null)
+    {
+        <div class="form-group">
+            <label>Customer Name</label>
+            <input class="form-control" value="@Order.CustomerName" readonly />
+        </div>
+
+        <div class="form-group">
+            <label>Order Date</label>
+            <input class="form-control" value="@Order.OrderDate.ToShortDateString()" readonly />
+        </div>
+
+        <div class="form-group">
+            <label>Is Active</label>
+            <input class="form-control" value="@GetIsActiveText(Order.IsActive)" readonly />
+        </div>
+
+      
+
+        <h4>Order Items</h4>
+
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Quantity</th>
+                    <th>Price</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var orderItem in Order.Items)
+                {
+                    <tr>
+                        <td>@Products.FirstOrDefault(p => p.ProductId == orderItem.ProductId)?.ProductName</td>
+                        <td>@orderItem.Quantity'</td>
+                        <td>@orderItem.Price</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+    private Order Order = new();
+    private List<Product> Products = new();
+
+    [Parameter]
+    public int id { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (id != 0)
+        {
+            Order = await http.GetFromJsonAsync<Order>("api/Order/" + id);
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Products = await http.GetFromJsonAsync<List<Product>>("api/Order/products");
+    }
+    //  private string GetIsActiveClass(bool isActive)
+    //{
+    //    return isActive ? "text-success font-weight-bold" : "text-danger font-weight-bold";
+    //}
+    private string GetIsActiveText(bool isActive)
+    {
+        return isActive ? "True" : "False";
+    }
+}
+
+=======================================================================================
+
+Done Run Application now   !!
+
+============================

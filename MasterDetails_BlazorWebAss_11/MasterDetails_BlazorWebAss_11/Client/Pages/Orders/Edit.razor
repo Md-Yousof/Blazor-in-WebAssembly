@@ -1,0 +1,130 @@
+﻿@page "/order/edit/{id:int}"
+@using MasterDetails_BlazorWebAss_11.Shared.Models
+@inject HttpClient http
+@inject NavigationManager NavigationManager
+
+<div class="container">
+    <div class="row">
+        <div class="col-lg-9">
+            <h2>Edit Order</h2>
+        </div>
+
+        <div class="col-lg-3 text-right">
+            <a href="/orders" role="button" class="btn btn-secondary btn-sm">Back to List</a>
+        </div>
+    </div>
+
+    @if (Order != null)
+    {
+        <EditForm Model="@Order" OnValidSubmit="@UpdateOrder" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="CustomerName">Customer Name</label>
+                <InputText id="CustomerName" class="form-control" @bind-Value="Order.CustomerName" />
+            </div>
+
+            <div class="form-group">
+                <label for="OrderDate">Order Date</label>
+                <InputDate id="OrderDate" class="form-control" @bind-Value="Order.OrderDate" />
+            </div>
+
+            <div class="form-group">
+                <label for="IsActive">Is Active</label>
+                <InputCheckbox id="IsActive" @bind-Value="Order.IsActive" />
+            </div>
+
+            
+
+            <h4>Order Items</h4>
+
+            @for (int i = 0; i < Order.Items.Count; i++)
+            {
+                var orderItem = Order.Items[i];
+                <div class="form-row" @key="orderItem">
+                    <div class="form-group col-md-4">
+                        <label for="ProductId">Product</label>
+                        <InputSelect id="ProductId" class="form-control" @bind-Value="orderItem.ProductId">
+                            @foreach (var product in Products)
+                            {
+                                <option value="@product.ProductId">@product.ProductName</option>
+                            }
+                        </InputSelect>
+                    </div>
+                    <div class="form-group col-md-4">
+                        <label for="Quantity">Quantity</label>
+                        <InputNumber id="Quantity" class="form-control" @bind-Value="orderItem.Quantity" />
+                    </div>
+                    <div class="form-group col-md-4">
+                        <label for="Price">Price</label>
+                        <InputNumber id="Price" class="form-control" @bind-Value="orderItem.Price" />
+                    </div>
+                    <div class="form-group col-md-1">
+                        <button type="button" class="btn btn-danger btn-sm" @onclick="RemoveOrderItem">Remove Item</button>
+                    </div>
+                </div>
+            }
+
+            <button type="button" class="btn btn-primary" @onclick="AddOrderItem">Add Item</button>
+
+            <button type="submit" class="btn btn-primary">Update Order</button>
+        </EditForm>
+    }
+</div>
+
+@code {
+    private Order Order = new();
+
+    private List<Product> Products = new();
+
+    [Parameter]
+    public int id { get; set; }
+
+
+    private void AddOrderItem()
+    {
+        Order.Items.Add(new OrderItem());
+    }
+
+
+    private void RemoveOrderItem()
+    {
+        var index = Order.Items.Count;
+
+        if (index > 1)
+        {
+            int i = 1;
+            //index = 1;
+            Order.Items.RemoveAt(i);
+        }
+        else
+        {
+            Order.Items.Clear();
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (id != 0)
+        {
+            Order = await http.GetFromJsonAsync<Order>("api/Order/" + id);
+        }
+    }
+
+    private async Task UpdateOrder()
+    {
+        if (id != 0)
+        {
+            var response = await http.PutAsJsonAsync("api/Order/", Order);
+            if (response.IsSuccessStatusCode)
+            {
+                NavigationManager.NavigateTo("/orders");
+            }
+        }
+
+    }
+    
+
+    protected override async void OnInitialized()
+    {
+        Products = await http.GetFromJsonAsync<List<Product>>("api/Order/products");
+    }
+}

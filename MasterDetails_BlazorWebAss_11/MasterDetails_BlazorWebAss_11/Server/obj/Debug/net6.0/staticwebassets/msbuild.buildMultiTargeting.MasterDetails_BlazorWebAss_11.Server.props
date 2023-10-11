@@ -1,0 +1,3 @@
+﻿<Project>
+  <Import Project="..\build\MasterDetails_BlazorWebAss_11.Server.props" />
+</Project>
