@@ -1,4 +1,4 @@
-Project Name	: Multiple Order Management System with master Details in Blazor
+	Project Name	: Multiple Order Management System with master Details in Blazor
 	Project Type	: Blazor WebAssembly with .NET 6 and ASP.NET Core
 	Technology used : SQL Server, Asp.Net core(.Net 6), HTML, CSS, etc.
 	=================================================================================
