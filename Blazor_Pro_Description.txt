@@ -1,0 +1,9 @@
+Project Name	  : Multiple Order Management System with master Detail in Blazor
+Project Type	  : Blazor WebAssembly with .NET 6 and ASP.NET Core
+Technology used : SQL Server, Asp.Net core(.Net 6), HTML, CSS, etc.
+=============================================================================================
+Description: This Blazor WebAssembly project created to manage multiple orders for clients, 
+		         implementing CRUD (Create, Read, Update, Delete) operations along with master-detail 
+		         functionality. The application allows users to view a list of orders, create new 
+		         orders, edit existing orders, and view order details.
+		         in this project technology used SQL Server, Asp.Net core(.Net 6), HTML, CSS, etc. 
